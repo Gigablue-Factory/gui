@@ -179,7 +179,7 @@ void bsodFatal(const char *component)
 
 		XmlGenerator xml(f);
 
-		xml.open("openMips");
+		xml.open("GIGABLUE OS");
 
 		xml.open("enigma2");
 		xml.string("crashdate", tm_str);

@@ -84,7 +84,7 @@ class UpdatePlugin(Screen, ProtectedScreen):
 		try:
 			# TODO: Use Twisted's URL fetcher, urlopen is evil. And it can
 			# run in parallel to the package update.
-			url = "http://image.openmips.com/status/%s/" % (getImageVersion())
+			url = "http://127.0.0.1/status/%s/" % (getImageVersion())
 			try:
 				status = urlopen(url, timeout=5).read().split('!', 1)
 				print status
@@ -95,16 +95,16 @@ class UpdatePlugin(Screen, ProtectedScreen):
 				print status
 			# prefer getMachineBuild
 			if getMachineBuild() in status[0].split(','):
-				message = len(status) > 1 and status[1] or _("The current software might not be stable.\nFor more information see %s.") % ("http://image.openmips.com")
+				message = len(status) > 1 and status[1] or _("The current software might not be stable.\nFor more information see %s.") % ("http://127.0.0.1")
 				picon = MessageBox.TYPE_ERROR
 				default = False
 			# only use getBoxType if no getMachineBuild
 			elif getBoxType() in status[0].split(','):
-				message = len(status) > 1 and status[1] or _("The current software might not be stable.\nFor more information see %s.") % ("http://image.openmips.com")
+				message = len(status) > 1 and status[1] or _("The current software might not be stable.\nFor more information see %s.") % ("http://127.0.0.1")
 				picon = MessageBox.TYPE_ERROR
 				default = False
 		except:
-			message = _("The status of the current software could not be checked because %s can not be reached.") % ("http://image.openmips.com")
+			message = _("The status of the current software could not be checked because %s can not be reached.") % ("http://127.0.0.1")
 			picon = MessageBox.TYPE_ERROR
 			default = False
 		socket.setdefaulttimeout(currentTimeoutDefault)
@@ -116,7 +116,7 @@ class UpdatePlugin(Screen, ProtectedScreen):
 
 	def showDisclaimer(self, justShow=False):
 		if config.usage.show_update_disclaimer.value or justShow:
-			message = _("With this disclaimer the openMips team is informing you that we are working with nightly builds and it might be that after the upgrades your set top box \
+			message = _("With this disclaimer the Gigablue OS is informing you that we are working with nightly builds and it might be that after the upgrades your set top box \
 is not anymore working as expected. Therefore it is recommended to create backups. If something went wrong you can easily and quickly restore. \
 When you discover 'bugs' please keep them reported on www.gigablue-support.com.\n\nDo you understand this?")
 			list = not justShow and [(_("no"), False), (_("yes"), True), (_("yes") + " " + _("and never show this message again"), "never")] or []
@@ -141,7 +141,7 @@ When you discover 'bugs' please keep them reported on www.gigablue-support.com.\
 			# run in parallel to the package update.
 			from time import strftime
 			from datetime import datetime
-			url = "http://image.openmips.com/%s/%s/build-timestamp" % (getImageVersion(), getBoxType())
+			url = "http://127.0.0.1/%s/%s/build-timestamp" % (getImageVersion(), getBoxType())
 			try:
 				latestImageTimestamp = datetime.fromtimestamp(int(urlopen(url, timeout=5).read())).strftime(_("%Y-%m-%d %H:%M"))
 			except:
@@ -217,7 +217,7 @@ When you discover 'bugs' please keep them reported on www.gigablue-support.com.\
 				if self.total_packages:
 					latestImageTimestamp = self.getLatestImageTimestamp()
 					if latestImageTimestamp:
-						message = _("Latest available openMips %s build is from: %s") % (getImageVersion(), self.getLatestImageTimestamp()) + "\n"
+						message = _("Latest available gigablue %s build is from: %s") % (getImageVersion(), self.getLatestImageTimestamp()) + "\n"
 						message += _("Do you want to update your receiver?") + "\n"
 					else:
 						message = _("Do you want to update your receiver?") + "\n"

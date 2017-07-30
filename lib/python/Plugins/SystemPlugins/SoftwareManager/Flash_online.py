@@ -28,9 +28,7 @@ from boxbranding import getBoxType, getMachineBrand, getMachineName, getMachineR
 images = []
 global imagesCounter
 imagesCounter = 0
-images.append(["openMips 6.1", "http://image.openmips.com/6.1", "%s/index.php?open=%s"])
-images.append(["openMips 5.4", "http://image.openmips.com/5.4", "%s/index.php?open=%s"])
-images.append(["openATV 6.0", "http://images.mynonpublic.com/openatv/6.0", "%s/index.php?open=%s"])
+images.append(["Gigablue 1708", "http://127.0.0.1/", "%s/index.php?open=%s"])
 
 imagePath = '/media/hdd/images'
 flashPath = '/media/hdd/images/flash'

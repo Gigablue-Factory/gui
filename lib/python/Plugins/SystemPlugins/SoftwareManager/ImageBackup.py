@@ -13,7 +13,7 @@ import commands
 import datetime
 from boxbranding import getBoxType, getMachineBrand, getMachineName, getDriverDate, getImageVersion, getImageBuild, getBrandOEM, getMachineBuild, getImageFolder, getMachineUBINIZE, getMachineMKUBIFS, getMachineMtdKernel, getMachineMtdRoot, getMachineKernelFile, getMachineRootFile, getImageFileSystem
 
-VERSION = "Version 1.0 openMips"
+VERSION = "Version 1.0 Gigablue"
 
 HaveGZkernel = True
 if getMachineBuild() in ("vusolo4k", "spark", "spark7162", "hd51", "hd52", "gb7252"):
@@ -530,7 +530,7 @@ class ImageBackup(Screen):
 
 	def imageInfo(self):
 		imageInfotext = _("[Full Image Backup]\n")
-		imageInfotext += _("By openMips Image Team") + "\n"
+		imageInfotext += _("By Gigablue OS") + "\n"
 		imageInfotext += _("Support at") + " http://gigablue-support.com/\n\n"
 		imageInfotext += _("[Image Info]\n")
 		imageInfotext += _("Model: %s %s\n") % (getMachineBrand(), getMachineName())
