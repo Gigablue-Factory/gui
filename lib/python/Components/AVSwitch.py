@@ -162,10 +162,10 @@ def InitAVSwitch():
 		config.av.pcm_multichannel = ConfigYesNo(default = False)
 		config.av.pcm_multichannel.addNotifier(setPCMMultichannel)
 
-	try:
-		SystemInfo["CanDownmixAC3"] = "downmix" in open("/proc/stb/audio/ac3_choices", "r").read()
-	except:
-		SystemInfo["CanDownmixAC3"] = False
+	#try:
+	#	SystemInfo["CanDownmixAC3"] = "downmix" in open("/proc/stb/audio/ac3_choices", "r").read()
+	#except:
+	SystemInfo["CanDownmixAC3"] = False
 
 	if SystemInfo["CanDownmixAC3"]:
 		def setAC3Downmix(configElement):
@@ -173,10 +173,10 @@ def InitAVSwitch():
 		config.av.downmix_ac3 = ConfigYesNo(default = True)
 		config.av.downmix_ac3.addNotifier(setAC3Downmix)
 
-	try:
-		SystemInfo["CanDownmixDTS"] = "downmix" in open("/proc/stb/audio/dts_choices", "r").read()
-	except:
-		SystemInfo["CanDownmixDTS"] = False
+	#try:
+	#	SystemInfo["CanDownmixDTS"] = "downmix" in open("/proc/stb/audio/dts_choices", "r").read()
+	#except:
+	SystemInfo["CanDownmixDTS"] = False
 
 	if SystemInfo["CanDownmixDTS"]:
 		def setDTSDownmix(configElement):
@@ -184,10 +184,10 @@ def InitAVSwitch():
 		config.av.downmix_dts = ConfigYesNo(default = True)
 		config.av.downmix_dts.addNotifier(setDTSDownmix)
 
-	try:
-		SystemInfo["CanDownmixAAC"] = "downmix" in open("/proc/stb/audio/aac_choices", "r").read()
-	except:
-		SystemInfo["CanDownmixAAC"] = False
+	#try:
+	#	SystemInfo["CanDownmixAAC"] = "downmix" in open("/proc/stb/audio/aac_choices", "r").read()
+	#except:
+	SystemInfo["CanDownmixAAC"] = False
 
 	if SystemInfo["CanDownmixAAC"]:
 		def setAACDownmix(configElement):
@@ -195,12 +195,12 @@ def InitAVSwitch():
 		config.av.downmix_aac = ConfigYesNo(default = True)
 		config.av.downmix_aac.addNotifier(setAACDownmix)
 
-	if os.path.exists("/proc/stb/audio/aac_transcode_choices"):
-		f = open("/proc/stb/audio/aac_transcode_choices", "r")
-		can_aactranscode = f.read().strip().split(" ")
-		f.close()
-	else:
-		can_aactranscode = False
+	#if os.path.exists("/proc/stb/audio/aac_transcode_choices"):
+	#	f = open("/proc/stb/audio/aac_transcode_choices", "r")
+	#	can_aactranscode = f.read().strip().split(" ")
+	#	f.close()
+	#else:
+	can_aactranscode = False
 
 	SystemInfo["CanAACTranscode"] = can_aactranscode
 
