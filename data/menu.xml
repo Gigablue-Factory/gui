@@ -99,11 +99,11 @@
 				</menu>
 
 				<!-- Menu / Settings / System / Recording Menu -->
-				<!--menu weight="20" level="0" text="Recording" entryID="recording_menu">
+				<menu weight="20" level="0" text="Recording" entryID="recording_menu">
 					<id val="recording_menu" />
 					<item weight="0" level="0" text="Basic settings" entryID="recording_setup"><setup id="recording" /></item>
 					<item weight="5" level="2" text="Recording paths" entryID="RecordPaths"><screen module="RecordPaths" screen="RecordPathsSettings" /></item>
-				</menu-->
+				</menu>
 
 				<!-- Menu / Settings / System / EPG Menu -->
 				<menu weight="25" level="0" text="EPG" entryID="epg_menu">
@@ -140,9 +140,9 @@ self.session.openWithCallback(msgClosed, EpgSaveMsg)
 				<menu weight="30" level="0" text="Network" entryID="network_menu">
 					<id val="network_menu" />
 					<item weight="0" level="0" text="Basic settings" entryID="network_setup"><screen module="NetworkSetup" screen="NetworkAdapterSelection"/></item>
-					<!--item weight="5" level="1" text="NFS setup" entryID="netnfs_setup"><screen module="NetworkTools" screen="NetworkNfs"/></item>
+					<item weight="5" level="1" text="NFS setup" entryID="netnfs_setup"><screen module="NetworkTools" screen="NetworkNfs"/></item>
 					<item weight="10" level="1" text="Samba setup" entryID="netsmba_setup"><screen module="NetworkTools" screen="NetworkSamba"/></item>
-					<item weight="15" level="1" text="Inetd recovery" entryID="netinetd_recovery"><screen module="NetworkTools" screen="InetdRecovery"/></item-->
+					<item weight="15" level="1" text="Inetd recovery" entryID="netinetd_recovery"><screen module="NetworkTools" screen="InetdRecovery"/></item>
 				</menu>
 
 				<!-- Menu / Settings / System / Devices Menu -->
