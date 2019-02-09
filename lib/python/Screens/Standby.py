@@ -119,6 +119,8 @@ class Standby2(Screen):
 			self.avswitch.setInput("SCART")
 		else:
 			self.avswitch.setInput("AUX")
+		if os.path.exists("/proc/stb/hdmi/output"):
+			open("/proc/stb/hdmi/output", "w").write("off")
 
 		gotoShutdownTime = int(config.usage.standby_to_shutdown_timer.value)
 		if gotoShutdownTime:
@@ -162,6 +164,8 @@ class Standby2(Screen):
 		self.leaveMute()
 		#if os.path.exists("/usr/script/standby_leave.sh"):
 		#	Console().ePopen("/usr/script/standby_leave.sh")
+		if os.path.exists("/proc/stb/hdmi/output"):
+			open("/proc/stb/hdmi/output", "w").write("on")
 
 	def __onFirstExecBegin(self):
 		global inStandby

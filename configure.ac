@@ -210,6 +210,13 @@ if test x"$withgigabluelcd" != xno ; then
 fi
 AM_CONDITIONAL(HAVE_GIGABLUELCD, test x"$withgigabluelcd" != xno)
 
+if test "$BOXTYPE" == "gbmv200"; then
+	AC_DEFINE(HAVE_HISILICON, 1,[define add HISILICON chip])
+	AC_DEFINE(CONFIG_HISILICON_FB, 1,[define add HISILICON framebuffer blit])
+	AC_DEFINE(FORCE_ALPHABLENDING_ACCELERATION, 1,[define when the framebuffer acceleration has alphablending support, but detection slow down all])
+	AC_DEFINE(VMSG_TYPE2, 1,[define vtuner_message type 2])
+fi
+
 AC_ARG_WITH(libsdl,
 	AS_HELP_STRING([--with-libsdl],[use libsdl, yes or no]),
 	[with_libsdl=$withval],[with_libsdl=no])
