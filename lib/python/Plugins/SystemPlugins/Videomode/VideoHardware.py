@@ -104,7 +104,7 @@ class VideoHardware:
 		modes["DVI"] = ["720p", "1080i", "1080p", "576p", "480p", "576i", "480i"]
 		# modes["DVI"] = ["720p", "1080p", "2160p", "1080i", "576p", "480p", "576i", "480i"]
 		widescreen_modes = set(["720p", "1080i", "1080p"])
-	elif chipset in ('bcm7252', 'bcm7251', 'bcm7251S', 'bcm7252s'):
+	elif chipset in ('bcm7252', 'bcm7251', 'bcm7251S', 'bcm7252s', '3798mv200', '3798cv200', 'hi3798mv200', 'hi3798cv200'):
 		modes["DVI"] = ["720p", "1080i", "1080p", "2160p", "2160p30", "576p", "480p", "576i", "480i"]
 		widescreen_modes = set(["720p", "1080i", "1080p", "2160p"])
 		del modes["Scart"]
@@ -113,7 +113,7 @@ class VideoHardware:
 		modes["DVI"] = ["720p", "1080i", "576p", "480p", "576i", "480i"]
 		widescreen_modes = set(["720p", "1080i"])
 
-	if modes.has_key("YPbPr") and getBoxType() in ('gbipbox', 'gbx1', 'gbx2', 'gbx3', 'gbx3h','mutant51', 'ax51'):
+	if modes.has_key("YPbPr") and getBoxType() in ('gbipbox', 'gbx1', 'gbx2', 'gbx3', 'gbx3h','mutant51', 'ax51', 'gbmv200'):
 		del modes["YPbPr"]
 
 	def getOutputAspect(self):

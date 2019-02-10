@@ -60,6 +60,8 @@ def getChipSetString():
 def getCPUString():
 	if getMachineBuild() in ('xc7362'):
 		return "Broadcom"
+	elif getMachineBuild() in ('gbmv200'):
+		return "Hisilicon"
 	#elif getMachineBuild() in ('gb73625'):
 	#	return "BCM73625"
 	else:
