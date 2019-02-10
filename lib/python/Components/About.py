@@ -110,6 +110,9 @@ def getImageTypeString():
 		return _("undefined")
 
 def getCPUInfoString():
+	if getMachineBuild() in ('gbmv200'):
+		return "Hisilicon 1,6 GHz 4 Cores"
+
 	try:
 		cpu_count = 0
 		cpu_speed = 0
@@ -148,6 +151,8 @@ def getCPUInfoString():
 		return _("undefined")
 
 def getCPUSpeedString():
+	if getMachineBuild() in ('gbmv200'):
+		return "1,6 GHz"
 	mhz = "unavailable"
 	try:
 		file = open('/proc/cpuinfo', 'r')
