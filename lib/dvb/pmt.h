@@ -46,15 +46,15 @@ class OCSection : public LongCrcSection
 class HbbTVApplicationInfo
 {
 public:
+	int m_ControlCode;
 	int m_OrgId;
 	int m_AppId;
-	int m_ControlCode;
-	short m_ProfileCode;
 	std::string m_HbbTVUrl;
 	std::string m_ApplicationName;
+	short m_ProfileCode;
 public:
 	HbbTVApplicationInfo(int controlCode, int orgid, int appid, std::string hbbtvUrl, std::string applicationName,int profileCode)
-		: m_ControlCode(controlCode), m_HbbTVUrl(hbbtvUrl), m_ApplicationName(applicationName), m_OrgId(orgid), m_AppId(appid),
+		: m_ControlCode(controlCode), m_OrgId(orgid), m_AppId(appid), m_HbbTVUrl(hbbtvUrl), m_ApplicationName(applicationName),
 		m_ProfileCode(profileCode)
 	{}
 };
@@ -66,6 +66,7 @@ class eDVBServicePMTHandler: public eDVBPMTParser
 {
 #ifndef SWIG
 	friend class eDVBCAService;
+	friend class eRTSPStreamClient;
 	eServiceReferenceDVB m_reference;
 	ePtr<eDVBService> m_service;
 
@@ -192,6 +193,7 @@ private:
 		std::string name;
 	};
 	std::vector<struct aitInfo> m_aitInfoList;
+	int compareAudioSubtitleCode(const std::string &subtitleTrack, const std::string &audioTrack);
 #endif
 };
 

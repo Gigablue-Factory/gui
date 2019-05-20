@@ -2,6 +2,7 @@ import struct, os, time
 from config import config, ConfigSelection, ConfigYesNo, ConfigSubsection, ConfigText, ConfigCECAddress, ConfigLocations, ConfigDirectory
 from enigma import eTimer, eHdmiCEC, eActionMap
 from Tools.StbHardware import getFPWasTimerWakeup
+import NavigationInstance
 from sys import maxint
 
 LOGPATH="/hdd/"
@@ -116,7 +117,12 @@ class HdmiCec:
 			eActionMap.getInstance().bindAction('', -maxint - 1, self.keyEvent)
 			config.hdmicec.volume_forwarding.addNotifier(self.configVolumeForwarding)
 			config.hdmicec.enabled.addNotifier(self.configVolumeForwarding)
-			if config.hdmicec.handle_deepstandby_events.value and not getFPWasTimerWakeup():
+			if config.hdmicec.enabled.value:
+				if config.hdmicec.report_active_menu.value:
+					if config.hdmicec.report_active_source.value and NavigationInstance.instance and not NavigationInstance.instance.isRestartUI():
+						self.sendMessage(0, "sourceinactive")
+					self.sendMessage(0, "menuactive")
+			if config.hdmicec.handle_deepstandby_events.value and (not getFPWasTimerWakeup() or (config.usage.startup_to_standby.value == "no" and config.misc.prev_wakeup_time_type.value == 3)):
 				self.onLeaveStandby()
 
 	def getPhysicalAddress(self):
@@ -281,7 +287,7 @@ class HdmiCec:
 		self.standbyMessages()
 
 	def onEnterDeepStandby(self, configElement):
-		if config.hdmicec.handle_deepstandby_events.value:
+		if config.hdmicec.enabled.value and config.hdmicec.handle_deepstandby_events.value:
 			if config.hdmicec.next_boxes_detect.value:
 				self.delay.start(750, True)
 			else:
@@ -355,7 +361,8 @@ class HdmiCec:
 						self.sendMessage(message.getAddress(), 'menuactive')
 			elif cmd == 0x90: # receive powerstatus report
 				if ord(data[0]) == 0: # some box is powered
-					self.useStandby = False
+					if config.hdmicec.next_boxes_detect.value:
+						self.useStandby = False
 					print "[HDMI-CEC] powered box found"
 			elif cmd == 0x9F: # request get CEC version
 				self.sendMessage(message.getAddress(), 'sendcecversion')

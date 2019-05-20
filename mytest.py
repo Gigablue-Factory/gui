@@ -130,6 +130,13 @@ except ImportError:
 # initialize autorun plugins and plugin menu entries
 #from Components.PluginComponent import plugins
 
+from twisted.python import log
+config.misc.enabletwistedlog = ConfigYesNo(default = False)
+if config.misc.enabletwistedlog.value == True:
+	log.startLogging(open('/tmp/twisted.log', 'w'))
+else:
+	log.startLogging(open('/dev/null', 'w'))
+
 profile("LOAD:Wizard")
 from Screens.Wizard import wizardManager
 from Screens.StartWizard import *
@@ -394,13 +401,20 @@ class PowerKey:
 		elif not Screens.Standby.inTryQuitMainloop and self.session.current_dialog and self.session.current_dialog.ALLOW_SUSPEND:
 			print "[mytest] PowerOff - Now!"
 			self.session.open(Screens.Standby.TryQuitMainloop, 1)
+		else:
+			return 0
 
 	def powerup(self):
-		self.doAction(config.misc.hotkey.power.value)
+		if not Screens.Standby.inStandby and self.session.current_dialog and self.session.current_dialog.ALLOW_SUSPEND and self.session.in_exec:
+			self.doAction(config.misc.hotkey.power.value)
+		else:
+			return 0
 
 	def powerlong(self):
-		if not(Screens.Standby.inTryQuitMainloop or (self.session.current_dialog and not self.session.current_dialog.ALLOW_SUSPEND)):
+		if not Screens.Standby.inStandby and self.session.current_dialog and self.session.current_dialog.ALLOW_SUSPEND and self.session.in_exec:
 			self.doAction(config.misc.hotkey.power_long.value)
+		else:
+			return 0
 
 	def doAction(self, selected):
 		if selected:
@@ -424,6 +438,8 @@ class PowerKey:
 	def standby(self):
 		if not Screens.Standby.inStandby and self.session.current_dialog and self.session.current_dialog.ALLOW_SUSPEND and self.session.in_exec:
 			self.session.open(Screens.Standby.Standby)
+		else:
+			return 0
 
 profile("Scart")
 from Screens.Scart import Scart
@@ -466,7 +482,9 @@ def runScreenTest():
 	config.misc.startCounter.save()
 
 	profile("readPluginList")
+	enigma.pauseInit()
 	plugins.readPluginList(resolveFilename(SCOPE_PLUGINS))
+	enigma.resumeInit()
 
 	profile("Init:Session")
 	nav = Navigation(config.misc.isNextRecordTimerAfterEventActionAuto.getValue())
@@ -507,7 +525,7 @@ def runScreenTest():
 	profile("Init:PowerKey")
 	power = PowerKey(session)
 	
-	if getBoxType() in ('spycat'):
+	if getBoxType() in ('spycat', ):
 		profile("VFDSYMBOLS")
 		import Components.VfdSymbols
 		Components.VfdSymbols.SymbolsCheck(session)
@@ -593,6 +611,11 @@ import Components.InputHotplug
 profile("AVSwitch")
 import Components.AVSwitch
 Components.AVSwitch.InitAVSwitch()
+
+ 
+profile("HdmiRecord")
+import Components.HdmiRecord
+Components.HdmiRecord.InitHdmiRecord()
 
 profile("RecordingConfig")
 import Components.RecordingConfig

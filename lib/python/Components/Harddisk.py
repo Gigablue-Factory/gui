@@ -12,6 +12,15 @@ def readFile(filename):
 	file.close()
 	return data
 
+def getextdevices(ext):
+	cmd ='blkid -t TYPE=%s -o device'%ext
+	extdevices = os.popen(cmd).read().replace('\n', ',').rstrip(",")
+	if extdevices == "":
+		return None
+	else:
+		extdevices = [x.strip() for x in extdevices.split(",")]
+		return extdevices
+
 def getProcMounts():
 	try:
 		mounts = open("/proc/mounts", 'r')
@@ -23,6 +32,12 @@ def getProcMounts():
 		# Spaces are encoded as \040 in mounts
 		item[1] = item[1].replace('\\040', ' ')
 	return result
+
+def getNetworkMediaMounts():
+	return [x[1] for x in getProcMounts() if x[0].startswith("//")]
+
+def getNonNetworkMediaMounts():
+	return [x[1] for x in getProcMounts() if x[1].startswith("/media/") and not x[0].startswith("//")]
 
 def isFileSystemSupported(filesystem):
 	try:
@@ -54,6 +69,7 @@ class Harddisk:
 			self.type = DEVTYPE_DEVFS
 		else:
 			print "[Harddisk] Unable to determine structure of /dev"
+			self.type = -1
 			self.card = False
 
 		self.max_idle_time = 0

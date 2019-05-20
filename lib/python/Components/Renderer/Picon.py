@@ -63,14 +63,21 @@ def findPicon(serviceName):
 
 def getPiconName(serviceName):
 	#remove the path and name fields, and replace ':' by '_'
-	sname = '_'.join(GetWithAlternative(serviceName).split(':', 10)[:10])
-	pngname = findPicon(sname)
-	if not pngname:
-		fields = sname.split('_', 3)
-		if len(fields) > 2 and fields[2] != '2': #fallback to 1 for tv services with nonstandard servicetypes
-			fields[2] = '1'
-		if fields[0] != '1':
-			fields[0] = '1'
+	fields = GetWithAlternative(serviceName).split(':', 10)[:10]
+	if not fields or len(fields) < 10:
+		return ""
+	pngname = findPicon('_'.join(fields))
+	if not pngname and not fields[6].endswith("0000"):
+		#remove "sub-network" from namespace
+		fields[6] = fields[6][:-4] + "0000"
+		pngname = findPicon('_'.join(fields))
+	if not pngname and fields[0] != '1':
+		#fallback to 1 for IPTV streams
+		fields[0] = '1'
+		pngname = findPicon('_'.join(fields))
+	if not pngname and fields[2] != '2':
+		#fallback to 1 for TV services with non-standard service types
+		fields[2] = '1'
 		pngname = findPicon('_'.join(fields))
 	if not pngname: # picon by channel name
 		try:
@@ -83,6 +90,9 @@ def getPiconName(serviceName):
 				pngname = findPicon(name)
 				if not pngname and len(name) > 2 and name.endswith('hd'):
 					pngname = findPicon(name[:-2])
+				if not pngname and len(name) > 6:
+					series = re.sub(r's[0-9]*e[0-9]*$', '', name)
+					pngname = findPicon(series)
 		except:
 			pass
 	return pngname

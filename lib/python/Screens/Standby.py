@@ -8,13 +8,13 @@ from Components.ActionMap import ActionMap
 from Components.config import config
 from Components.AVSwitch import AVSwitch
 from Components.Console import Console
-from Components.Harddisk import internalHDDNotSleeping
+from Components.ImportChannels import ImportChannels
+from Tools.Directories import mediafilesInUse
 from Components.SystemInfo import SystemInfo
 from GlobalActions import globalActionMap
-from enigma import eDVBVolumecontrol, eTimer, eDVBLocalTimeHandler, eServiceReference
-import Screens.InfoBar
+from enigma import eDVBVolumecontrol, eTimer, eDVBLocalTimeHandler, eServiceReference, eStreamServer
+from Components.Sources.StreamService import StreamServiceList
 from boxbranding import getMachineBrand, getMachineName, getBoxType
-from Tools.HardwareInfo import HardwareInfo
 
 inStandby = None
 
@@ -61,8 +61,8 @@ class Standby2(Screen):
 		print "[Standby] enter standby"
 		if os.path.exists("/usr/script/Standby.sh"):
 			Console().ePopen("/usr/script/Standby.sh off")
-		#if os.path.exists("/usr/script/standby_enter.sh"):
-		#	Console().ePopen("/usr/script/standby_enter.sh")
+		if os.path.exists("/usr/script/standby_enter.sh"):
+			Console().ePopen("/usr/script/standby_enter.sh")
 
 		self["actions"] = ActionMap( [ "StandbyActions" ],
 		{
@@ -162,10 +162,12 @@ class Standby2(Screen):
 		if os.path.exists("/usr/script/Standby.sh"):
 			Console().ePopen("/usr/script/Standby.sh on")
 		self.leaveMute()
-		#if os.path.exists("/usr/script/standby_leave.sh"):
-		#	Console().ePopen("/usr/script/standby_leave.sh")
+		if os.path.exists("/usr/script/standby_leave.sh"):
+			Console().ePopen("/usr/script/standby_leave.sh")
 		if os.path.exists("/proc/stb/hdmi/output"):
 			open("/proc/stb/hdmi/output", "w").write("on")
+		if config.usage.remote_fallback_import_standby.value:
+			ImportChannels()
 
 	def __onFirstExecBegin(self):
 		global inStandby
@@ -197,7 +199,7 @@ class Standby2(Screen):
 							duration += 24*3600
 						self.standbyTimeoutTimer.startLongTimer(duration)
 						return
-		if self.session.screen["TunerInfo"].tuner_use_mask or internalHDDNotSleeping():
+		if self.session.screen["TunerInfo"].tuner_use_mask or mediafilesInUse(self.session):
 			self.standbyTimeoutTimer.startLongTimer(600)
 		else:
 			from RecordTimer import RecordTimerEntry
@@ -263,43 +265,41 @@ class QuitMainloopScreen(Screen):
 
 inTryQuitMainloop = False
 
-class TryQuitMainloop(MessageBox):
-	def __init__(self, session, retvalue=1, timeout=-1, default_yes = False):
-		self.retval = retvalue
-		self.ptsmainloopvalue = retvalue
-		recordings = session.nav.getRecordings()
-		jobs = len(job_manager.getPendingJobs())
-		self.connected = False
-		reason = ""
-		next_rec_time = -1
-		if not recordings:
-			next_rec_time = session.nav.RecordTimer.getNextRecordingTime()
-		if recordings or (next_rec_time > 0 and (next_rec_time - time()) < 360):
-			reason = _("Recording(s) are in progress or coming up in few seconds!") + '\n'
-		if jobs:
-			reason = _("Job task(s) are in progress!") + '\n'
-			if jobs == 1:
-				job = job_manager.getPendingJobs()[0]
-				reason += "%s: %s (%d%%)\n" % (job.getStatustext(), job.name, int(100*job.progress/float(job.end)))
-			else:
-				reason += (_("%d jobs are running in the background!") % jobs) + '\n'
-			if job.name == "VFD Checker":
-				reason = ""
-		if recordings or (next_rec_time > 0 and (next_rec_time - time()) < 360):
-			reason = _("Recording(s) are in progress or coming up in few seconds!") + '\n'
+def getReasons(session, retvalue=1):
+	recordings = session.nav.getRecordings()
+	jobs = len(job_manager.getPendingJobs())
+	reasons = []
+	next_rec_time = -1
+	if not recordings:
+		next_rec_time = session.nav.RecordTimer.getNextRecordingTime()
+	if recordings or (next_rec_time > 0 and (next_rec_time - time()) < 360):
+		reasons.append(_("Recording(s) are in progress or coming up in few seconds!"))
+	if jobs:
+		if jobs == 1:
+			job = job_manager.getPendingJobs()[0]
+			reasons.append("%s: %s (%d%%)" % (job.getStatustext(), job.name, int(100*job.progress/float(job.end))))
+		else:
+			reasons.append((ngettext("%d job is running in the background!", "%d jobs are running in the background!", jobs) % jobs))
+	if eStreamServer.getInstance().getConnectedClients() or StreamServiceList:
+			reasons.append(_("Client is streaming from this box!"))
+	if not reasons and mediafilesInUse(session) and retvalue in (1, 2, 4, 42, 43):
+			reasons.append(_("A file from media is in use!"))
+	return "\n".join(reasons)
 
-		if reason and inStandby:
-			session.nav.record_event.append(self.getRecordEvent)
-			self.skinName = ""
-		elif reason and not inStandby:
+class TryQuitMainloop(MessageBox):
+	def __init__(self, session, retvalue=1, timeout=-1, default_yes=False, check_reasons=True):
+		self.retval = retvalue
+		self.connected = False
+		reason = check_reasons and getReasons(session, retvalue)
+		if reason:
 			text = { 1: _("Really shutdown your %s %s now?") % (MACHINEBRAND, MACHINENAME),
 				2: _("Really reboot your %s %s now?") % (MACHINEBRAND, MACHINENAME),
 				3: _("Really restart your %s %s now?") % (MACHINEBRAND, MACHINENAME),
 				4: _("Really upgrade the frontprocessor and reboot now?"),
 				42: _("Really upgrade your %s %s and reboot now?") % (MACHINEBRAND, MACHINENAME),
-				43: _("Really WOL now?")}.get(retvalue)
+				43: _("Really WOL now?") }.get(retvalue, None)
 			if text:
-				MessageBox.__init__(self, session, reason+text, type = MessageBox.TYPE_YESNO, timeout = timeout, default = default_yes)
+				MessageBox.__init__(self, session, "%s\n%s" % (reason, text), type=MessageBox.TYPE_YESNO, timeout=timeout, default=default_yes)
 				self.skinName = "MessageBoxSimple"
 				session.nav.record_event.append(self.getRecordEvent)
 				self.connected = True

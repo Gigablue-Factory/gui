@@ -113,6 +113,7 @@ class NetworkAdapterSelection(Screen,HelpableScreen):
 	def updateList(self):
 		self.list = []
 		default_gw = None
+		iNetwork.getInterfaces()
 		num_configured_if = len(iNetwork.getConfiguredAdapters())
 		if num_configured_if >= 2:
 			self["key_yellow"].setText(_("Default"))
@@ -1122,7 +1123,7 @@ class AdapterSetupConfiguration(Screen, HelpableScreen):
 			menu.append((_("Network wizard"), "openwizard"))
 		kernel_ver = about.getKernelVersionString()
 		# CHECK WHICH BOXES NOW SUPPORT MAC-CHANGE VIA GUI
-		if getBoxType() not in ('DUMMY') and self.iface == 'eth0':
+		if getBoxType() not in ('DUMMY', ) and self.iface == 'eth0':
 			menu.append((_("Network MAC settings"), "mac"))
 			# DISABLE IPv6 SUPPORT 
 			menu.append((_("Enable/Disable IPv6"), "ipv6"))
@@ -1480,7 +1481,7 @@ class NetworkAdapterTest(Screen):
 			self["InfoText"].show()
 			self["key_red"].setText(_("Back"))
 		if self.activebutton == 3: #DHCP Check
-			self["InfoText"].setText(_("This test checks whether your LAN adapter is set up for automatic IP address configuration with DHCP.\nIf you get a \"disabled\" message:\n - then your LAN adapter is configured for manual IP setup\n- verify thay you have entered correct IP informations in the adapter setup dialog.\nIf you get an \"enabeld\" message:\n-verify that you have a configured and working DHCP server in your network."))
+			self["InfoText"].setText(_("This test checks whether your LAN adapter is set up for automatic IP address configuration with DHCP.\nIf you get a \"disabled\" message:\n - then your LAN adapter is configured for manual IP setup\n- verify thay you have entered the correct IP information in the adapter setup dialog.\nIf you get an \"enabeld\" message:\n-verify that you have a configured and working DHCP server in your network."))
 			self["InfoTextBorder"].show()
 			self["InfoText"].show()
 			self["key_red"].setText(_("Back"))

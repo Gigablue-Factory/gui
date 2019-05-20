@@ -819,9 +819,10 @@ void ePicLoad::decodeThumb()
 		if(FILE *f=fopen(m_filepara->file, "rb"))
 		{
 			int c;
-			int count = 1024*100;
-			unsigned long crc32 = 0;
-			char crcstr[9];*crcstr=0;
+			int count = 1024*100; // get checksum data out of max 100kB
+			uint32_t crc32 = 0;
+			char crcstr[9];
+			*crcstr = 0;
 
 			while ((c=getc(f))!=EOF)
 			{
@@ -831,10 +832,10 @@ void ePicLoad::decodeThumb()
 
 			fclose(f);
 			crc32 = ~crc32;
-			sprintf(crcstr, "%08lX", crc32);
+			sprintf(crcstr, "%08X", crc32);
 
 			cachedir = m_filepara->file;
-			unsigned int pos = cachedir.find_last_of("/");
+			size_t pos = cachedir.find_last_of("/");
 			if (pos != std::string::npos)
 				cachedir = cachedir.substr(0, pos) + "/.Thumbnails";
 

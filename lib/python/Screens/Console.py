@@ -2,6 +2,7 @@ from enigma import eConsoleAppContainer
 from Screens.Screen import Screen
 from Components.ActionMap import ActionMap
 from Components.ScrollLabel import ScrollLabel
+from Components.Sources.StaticText import StaticText
 
 class Console(Screen):
 	#TODO move this to skin.xml
@@ -10,16 +11,21 @@ class Console(Screen):
 			<widget name="text" position="0,0" size="550,400" font="Console;14" />
 		</screen>"""
 
-	def __init__(self, session, title = "Console", cmdlist = None, finishedCallback = None, closeOnSuccess = False):
+	def __init__(self, session, title = "Console", cmdlist = None, finishedCallback = None, closeOnSuccess = False, showStartStopText=True, skin=None):
 		Screen.__init__(self, session)
 
 		self.finishedCallback = finishedCallback
 		self.closeOnSuccess = closeOnSuccess
+		self.showStartStopText = showStartStopText
+		if skin:
+			self.skinName = [skin, "Console"]
+
 		self.errorOcurred = False
 
 		self.Shown = True
 		self["text"] = ScrollLabel("")
-		self["actions"] = ActionMap(["ColorActions", "WizardActions", "DirectionActions"], 
+		self["key_red"] = StaticText(_("Cancel"))
+		self["actions"] = ActionMap(["ColorActions", "WizardActions", "DirectionActions"],
 		{
 			"ok": self.cancel,
 			"back": self.cancel,
@@ -28,7 +34,7 @@ class Console(Screen):
 			"yellow": self.yellow,
 		}, -2)
 
-		self.cmdlist = cmdlist
+		self.cmdlist = isinstance(cmdlist, list) and cmdlist or [cmdlist]
 		self.newtitle = title == "Console" and _("Console") or title
 
 		self.onShown.append(self.updateTitle)
@@ -52,7 +58,8 @@ class Console(Screen):
 		self.setTitle(self.newtitle)
 
 	def startRun(self):
-		self["text"].setText(_("Execution progress:") + "\n\n")
+		if self.showStartStopText:
+			self["text"].setText(_("Execution progress:") + "\n\n")
 		print "Console: executing in run", self.run, " the command:", self.cmdlist[self.run]
 		if self.container.execute(self.cmdlist[self.run]): #start of container application failed...
 			self.runFinished(-1) # so we must call runFinished manual
@@ -66,11 +73,15 @@ class Console(Screen):
 				self.runFinished(-1) # so we must call runFinished manual
 		else:
 			lastpage = self["text"].isAtLastPage()
-			self["text"].appendText(_("Execution finished!!"))
+			if self.showStartStopText:
+				self["text"].appendText(_("Execution finished!!"))
 			if self.finishedCallback is not None:
 				self.finishedCallback()
 			if not self.errorOcurred and self.closeOnSuccess:
 				self.cancel()
+			else:
+				self["text"].appendText(_("\nPress OK or Exit to close!"))
+				self["key_red"].setText(_("Exit"))
 
 	def cancel(self):
 		if self.run == len(self.cmdlist):

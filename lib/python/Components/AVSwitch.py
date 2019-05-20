@@ -2,7 +2,7 @@ from config import config, ConfigSlider, ConfigSelection, ConfigYesNo, ConfigEna
 from enigma import eAVSwitch, getDesktop
 from SystemInfo import SystemInfo
 import os
-from boxbranding import getBoxType
+from boxbranding import getBoxType, getMachineBuild
 
 class AVSwitch:
 	def setInput(self, input):
@@ -67,13 +67,17 @@ class AVSwitch:
 def InitAVSwitch():
 	config.av = ConfigSubsection()
 	config.av.yuvenabled = ConfigBoolean(default=True)
-	colorformat_choices = {"cvbs": _("CVBS"), "rgb": _("RGB"), "svideo": _("S-Video")}
+	colorformat_choices = {"cvbs": _("CVBS")}
 
-	# when YUV is not enabled, don't let the user select it
-	if config.av.yuvenabled.value:
+	# when YUV, Scart or S-Video is not support by HW, don't let the user select it
+	if SystemInfo["HasYPbPr"]:
 		colorformat_choices["yuv"] = _("YPbPr")
+	if SystemInfo["HasScart"]:
+		colorformat_choices["rgb"] = _("RGB")
+	if SystemInfo["HasSVideo"]:
+		colorformat_choices["svideo"] = _("S-Video")
 
-	config.av.colorformat = ConfigSelection(choices=colorformat_choices, default="rgb")
+	config.av.colorformat = ConfigSelection(choices=colorformat_choices, default="cvbs")
 	config.av.aspectratio = ConfigSelection(choices={
 			"4_3_letterbox": _("4:3 Letterbox"),
 			"4_3_panscan": _("4:3 PanScan"),
@@ -94,11 +98,17 @@ def InitAVSwitch():
 	"letterbox": _("Letterbox"),
 	# TRANSLATORS: (aspect ratio policy: cropped content on left/right) in doubt, keep english term
 	"panscan": _("Pan&scan"),
-	# TRANSLATORS: (aspect ratio policy: display as fullscreen, even if this breaks the aspect)
+	# TRANSLATORS: (aspect ratio policy: scale as close to fullscreen as possible)
 	"scale": _("Just scale")}
 	try:
+		if "full" in open("/proc/stb/video/policy2_choices").read():
+			# TRANSLATORS: (aspect ratio policy: display as fullscreen, even if the content aspect ratio does not match the screen ratio)
+			policy2_choices.update({"full": _("Full screen")})
+	except:
+		pass
+	try:
 		if "auto" in open("/proc/stb/video/policy2_choices").read():
-			# TRANSLATORS: (aspect ratio policy: always try to display as fullscreen, when there is no content (black bars) on left/right, even if this breaks the aspect.
+			# TRANSLATORS: (aspect ratio policy: automatically select the best aspect ratio mode)
 			policy2_choices.update({"auto": _("Auto")})
 	except:
 		pass
@@ -108,13 +118,23 @@ def InitAVSwitch():
 	"pillarbox": _("Pillarbox"),
 	# TRANSLATORS: (aspect ratio policy: cropped content on left/right) in doubt, keep english term
 	"panscan": _("Pan&scan"),
-	# TRANSLATORS: (aspect ratio policy: display as fullscreen, with stretching the left/right)
-	"nonlinear": _("Nonlinear"),
-	# TRANSLATORS: (aspect ratio policy: display as fullscreen, even if this breaks the aspect)
+	# TRANSLATORS: (aspect ratio policy: scale as close to fullscreen as possible)
 	"scale": _("Just scale")}
 	try:
+		if "nonlinear" in open("/proc/stb/video/policy_choices").read():
+			# TRANSLATORS: (aspect ratio policy: display as fullscreen, with stretching the left/right)
+			policy_choices.update({"nonlinear": _("Nonlinear")})
+	except:
+		pass
+	try:
+		if "full" in open("/proc/stb/video/policy_choices").read():
+			# TRANSLATORS: (aspect ratio policy: display as fullscreen, even if the content aspect ratio does not match the screen ratio)
+			policy_choices.update({"full": _("Full screen")})
+	except:
+		pass
+	try:
 		if "auto" in open("/proc/stb/video/policy_choices").read():
-			# TRANSLATORS: (aspect ratio policy: always try to display as fullscreen, when there is no content (black bars) on left/right, even if this breaks the aspect.
+			# TRANSLATORS: (aspect ratio policy: automatically select the best aspect ratio mode)
 			policy_choices.update({"auto": _("Auto")})
 	except:
 		pass
@@ -149,11 +169,12 @@ def InitAVSwitch():
 	config.av.wss.addNotifier(setWSS)
 
 	iAVSwitch.setInput("ENCODER") # init on startup
-	if getBoxType() in ('gbquad4k', 'gbue4k', 'gbquad', 'gbquadplus', 'gb800seplus', 'gb800ueplus', 'gbipbox', 'gbultra', 'gbultraue', 'gbultraueh', 'gbultrase', 'spycat', 'gbx1', 'gbx2', 'gbx3', 'gbx3h'):
-		detected = False
-	else:
+
+	if getMachineBuild() in ('gb7325', ):
 		detected = eAVSwitch.getInstance().haveScartSwitch()
-	
+	else:
+		detected = False
+
 	SystemInfo["ScartSwitch"] = detected
 
 	if SystemInfo["HasMultichannelPCM"]:
@@ -162,21 +183,17 @@ def InitAVSwitch():
 		config.av.pcm_multichannel = ConfigYesNo(default = False)
 		config.av.pcm_multichannel.addNotifier(setPCMMultichannel)
 
-	#try:
-	#	SystemInfo["CanDownmixAC3"] = "downmix" in open("/proc/stb/audio/ac3_choices", "r").read()
-	#except:
-	SystemInfo["CanDownmixAC3"] = False
-
 	if SystemInfo["CanDownmixAC3"]:
 		def setAC3Downmix(configElement):
 			open("/proc/stb/audio/ac3", "w").write(configElement.value and "downmix" or "passthrough")
 		config.av.downmix_ac3 = ConfigYesNo(default = True)
 		config.av.downmix_ac3.addNotifier(setAC3Downmix)
 
-	#try:
-	#	SystemInfo["CanDownmixDTS"] = "downmix" in open("/proc/stb/audio/dts_choices", "r").read()
-	#except:
-	SystemInfo["CanDownmixDTS"] = False
+	if SystemInfo["CanDownmixAC3Plus"]:
+		def setAC3PlusDownmix(configElement):
+			open("/proc/stb/audio/ac3plus", "w").write(configElement.value and "downmix" or "passthrough")
+		config.av.downmix_ac3plus = ConfigYesNo(default = True)
+		config.av.downmix_ac3plus.addNotifier(setAC3PlusDownmix)	
 
 	if SystemInfo["CanDownmixDTS"]:
 		def setDTSDownmix(configElement):
@@ -184,10 +201,11 @@ def InitAVSwitch():
 		config.av.downmix_dts = ConfigYesNo(default = True)
 		config.av.downmix_dts.addNotifier(setDTSDownmix)
 
-	#try:
-	#	SystemInfo["CanDownmixAAC"] = "downmix" in open("/proc/stb/audio/aac_choices", "r").read()
-	#except:
-	SystemInfo["CanDownmixAAC"] = False
+	if SystemInfo["CanDownmixDTSHD"]:
+		def setDTSHDDownmix(configElement):
+			open("/proc/stb/audio/dtshd", "w").write(configElement.value and "downmix" or "passthrough")
+		config.av.downmix_dtshd = ConfigYesNo(default = True)
+		config.av.downmix_dtshd.addNotifier(setDTSHDDownmix)
 
 	if SystemInfo["CanDownmixAAC"]:
 		def setAACDownmix(configElement):
@@ -195,25 +213,23 @@ def InitAVSwitch():
 		config.av.downmix_aac = ConfigYesNo(default = True)
 		config.av.downmix_aac.addNotifier(setAACDownmix)
 
-	#if os.path.exists("/proc/stb/audio/aac_transcode_choices"):
-	#	f = open("/proc/stb/audio/aac_transcode_choices", "r")
-	#	can_aactranscode = f.read().strip().split(" ")
-	#	f.close()
-	#else:
-	can_aactranscode = False
+	if SystemInfo["CanDownmixAACPlus"]:
+		def setAACPlusDownmix(configElement):
+			open("/proc/stb/audio/aacplus", "w").write(configElement.value and "downmix" or "passthrough")
+		config.av.downmix_aacplus = ConfigYesNo(default = True)
+		config.av.downmix_aacplus.addNotifier(setAACPlusDownmix)
 
-	SystemInfo["CanAACTranscode"] = can_aactranscode
+	if SystemInfo["CanDownmixWMApro"]:
+		def setWMAproDownmix(configElement):
+			open("/proc/stb/audio/wmapro", "w").write(configElement.value)
+		config.av.downmix_wmapro = ConfigSelection(default = "downmix", choices = [("downmix",_("Downmix")), ("passthrough",_("Passthrough")), ("multichannel",_("convert to multi channel PCM")), ("hdmi_best",_("use best, controlled by HDMI"))])
+		config.av.downmix_wmapro.addNotifier(setWMAproDownmix)
 
-	if can_aactranscode:
+	if SystemInfo["CanAACTranscode"]:
 		def setAACTranscode(configElement):
-			f = open("/proc/stb/audio/aac_transcode", "w")
-			f.write(configElement.value)
-			f.close()
-		choice_list = [("off", _("off")), ("ac3", _("AC3")), ("dts", _("DTS"))]
-		config.av.transcodeaac = ConfigSelection(choices = choice_list, default = "off")
-		config.av.transcodeaac.addNotifier(setAACTranscode)
-	else:
-		config.av.transcodeaac = ConfigNothing()
+			open("/proc/stb/audio/aac_transcode", "w").write(configElement.value)
+		config.av.transcode_aac = ConfigSelection(default = "off", choices = [("off", _("off")), ("ac3", _("AC3")), ("dts", _("DTS"))])
+		config.av.transcode_aac.addNotifier(setAACTranscode)
 
 	try:
 		SystemInfo["CanChangeOsdAlpha"] = open("/proc/stb/video/alpha", "r") and True or False
@@ -236,15 +252,13 @@ def InitAVSwitch():
 			except IOError:
 				print "couldn't write pep_scaler_sharpness"
 
-		if getBoxType() in ('gbquad4k', 'gbquad', 'gbquadplus'):
+		if getBoxType() in ('gbquad', 'gbquadplus'):
 			config.av.scaler_sharpness = ConfigSlider(default=5, limits=(0,26))
 		else:
 			config.av.scaler_sharpness = ConfigSlider(default=13, limits=(0,26))
 		config.av.scaler_sharpness.addNotifier(setScaler_sharpness)
 	else:
 		config.av.scaler_sharpness = NoSave(ConfigNothing())
-
-	config.av.edid_override = ConfigYesNo(default = True)
 
 	if SystemInfo["HasMultichannelPCM"]:
 		def setMultichannelPCM(configElement):
@@ -287,3 +301,10 @@ def InitAVSwitch():
 			open(SystemInfo["Has3DSurroundSoftLimiter"], "w").write(configElement.value and "enabled" or "disabled")
 		config.av.surround_softlimiter_3d = ConfigYesNo(default = False)
 		config.av.surround_softlimiter_3d.addNotifier(set3DSurroundSoftLimiter)
+		
+	if SystemInfo["HDMIAudioSource"]:
+		def setHDMIAudioSource(configElement):
+			open(SystemInfo["HDMIAudioSource"], "w").write(configElement.value)
+		config.av.hdmi_audio_source = ConfigSelection(default = "pcm", choices = [("pcm", _("PCM")), ("spdif", _("SPDIF"))])
+		config.av.hdmi_audio_source.addNotifier(setHDMIAudioSource)
+

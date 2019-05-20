@@ -31,7 +31,7 @@
 
 		<item weight="10" level="1" text="Plugins" entryID="plugin_selection"><screen module="PluginBrowser" screen="PluginBrowser" /></item>
 
-		<item weight="15" level="1" text="VCR scart" entryID="scart_switch" configcondition="config.usage.show_vcr_scart" requires="ScartSwitch"><code>self.session.scart.VCRSbChanged(3)</code></item>
+		<item weight="15" level="1" text="VCR scart" entryID="scart_switch" conditional="config.usage.show_vcr_scart" requires="ScartSwitch"><code>self.session.scart.VCRSbChanged(3)</code></item>
 
 		<!-- Menu / Settings -->
 		<menu weight="20" level="0" text="Setup" flushConfigOnClose="1" entryID="setup_selection" >
@@ -55,8 +55,9 @@
 			<menu weight="20" level="0" text="Tuner" entryID="service_searching_selection" requires="hasTuners">
 				<id val="scan" />
 				<item weight="0" level="0" text="Basic settings" entryID="tuner_setup"><screen module="Satconfig" screen="NimSelection" /></item>
-				<item weight="5" level="0" text="Automatic scan" entryID="auto_scan"><screen module="ScanSetup" screen="ScanSimple" /></item>
-				<item weight="10" level="0" text="Manual scan" entryID="manual_scan"><screen module="ScanSetup" /></item>
+				<item weight="5" level="0" text="Automatic scan" entryID="auto_scan" conditional="nimmanager.somethingConnected()"><screen module="ScanSetup" screen="ScanSimple" /></item>
+				<item weight="10" level="0" text="Manual scan" entryID="manual_scan" conditional="nimmanager.somethingConnected()"><screen module="ScanSetup" /></item>
+				<item weight="20" level="0" text="Fallback remote receiver setup" entryID="fallbacktuner_settings"><screen module="SetupFallbacktuner"/></item>
 			</menu>
 
 			<item weight="25" level="0" text="Parental control" entryID="parental_setup"><screen module="ParentalControlSetup" screen="ParentalControlSetup" /></item>
@@ -86,7 +87,7 @@
 					<id val="ui_menu" />
 					<item weight="0" level="0" entryID="user_interface"><setup id="userinterface" /></item>
 					<item weight="5" level="0" text="Language" entryID="language_setup"><screen module="LanguageSelection" /></item>
-					<item weight="10" level="0" text="Weather GigaBlue Pax" entryID="ommetrixweather_setup"><screen module="OMMetrixWeatherSetup" /></item>
+				<!-- <item weight="10" level="0" text="Weather GigaBlue Pax" entryID="ommetrixweather_setup"><screen module="OMMetrixWeatherSetup" /></item> -->
 					<item weight="15" level="0" text="HotKey" entryID="hotkey_setup"><screen module="Hotkey" screen="HotkeySetup" /></item>
 				</menu>
 
@@ -103,6 +104,7 @@
 					<id val="recording_menu" />
 					<item weight="0" level="0" text="Basic settings" entryID="recording_setup"><setup id="recording" /></item>
 					<item weight="5" level="2" text="Recording paths" entryID="RecordPaths"><screen module="RecordPaths" screen="RecordPathsSettings" /></item>
+					<!-- <item weight="10" level="0" text="HDMI-IN Recording settings" entryID="hdmirecord_setup" requires="HasHDMI-In"><setup id="HDMIRecord"/></item> -->
 				</menu>
 
 				<!-- Menu / Settings / System / EPG Menu -->
@@ -190,7 +192,8 @@ self.session.openWithCallback(msgClosed, FactoryReset)
 			<item weight="10" level="0" text="Standby" entryID="standby"><screen module="Standby" screen="Standby"/></item>
 			<item weight="15" level="0" text="Sleep/wakeup timer" entryID="sleep"><screen module="SleepTimerEdit" screen="SleepTimerEdit" /></item>
 			<item weight="20" level="0" text="Restart enigma" entryID="restart_enigma"><screen module="Standby" screen="TryQuitMainloop">3</screen></item>
-			<!--item weight="23" level="0" text="MultiBoot" requires="HasMultiBoot" entryID="deep_standby"><screen module="MultiBootStartup" screen="MultiBootStartup" /></item-->
+			<item weight="23" level="0" text="MultiBoot" requires="HasMultiBootGB" entryID="deep_standby"><screen module="MultiBootStartupGB" screen="MultiBootStartup" /></item>
+			<item weight="23" level="0" text="MultiBoot" requires="HasMultiBoot" entryID="deep_standby"><screen module="MultiBootStartup" screen="MultiBootStartup" /></item>
 			<item weight="25" level="0" text="Restart" entryID="restart"><screen module="Standby" screen="TryQuitMainloop">2</screen></item>
 			<item weight="30" level="0" text="Shutdown" requires="!DeepstandbySupport" entryID="deep_standby"><screen module="Standby" screen="TryQuitMainloop">1</screen></item>
 		</menu>

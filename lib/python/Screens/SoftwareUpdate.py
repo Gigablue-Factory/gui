@@ -12,10 +12,9 @@ from Components.Sources.StaticText import StaticText
 from Components.Slider import Slider
 from Tools.BoundFunction import boundFunction
 from enigma import eTimer, eDVBDB
-from boxbranding import getBoxType, getImageVersion, getMachineBuild
+from boxbranding import getBoxType, getImageVersion, getMachineBuild, getImageType
 from Tools.Directories import fileExists
 from urllib2 import urlopen
-import socket
 
 class UpdatePlugin(Screen, ProtectedScreen):
 	skin = """
@@ -30,7 +29,7 @@ class UpdatePlugin(Screen, ProtectedScreen):
 		Screen.__init__(self, session)
 		ProtectedScreen.__init__(self)
 
-		self.sliderPackages = { "dreambox-dvb-modules": 1, "enigma2": 2, "tuxbox-image-info": 3 }
+		self.sliderPackages = { "gigablue-": 1, "enigma2": 2 }
 
 		self.setTitle(_("Software update"))
 		self.slider = Slider(0, 4)
@@ -95,7 +94,6 @@ class UpdatePlugin(Screen, ProtectedScreen):
 				print status
 			# prefer getMachineBuild
 			if getMachineBuild() in status[0].split(','):
-				message = len(status) > 1 and status[1] or _("The current software might not be stable.\nFor more information see %s.") % ("http://127.0.0.1")
 				picon = MessageBox.TYPE_ERROR
 				default = False
 			# only use getBoxType if no getMachineBuild

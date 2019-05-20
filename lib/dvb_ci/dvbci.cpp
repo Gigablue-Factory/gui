@@ -2,6 +2,10 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
+#include <ios>
+#include <fstream>
+#include <iomanip>
+
 #include <lib/base/init.h>
 #include <lib/base/init_num.h>
 #include <lib/base/cfile.h>
@@ -30,43 +34,143 @@
 
 eDVBCIInterfaces *eDVBCIInterfaces::instance = 0;
 
+static char* readInputCI(int NimNumber)
+{
+	char id1[] = "NIM Socket";
+	char id2[] = "Input_Name";
+	char keys1[] = "1234567890";
+	char keys2[] = "12ABCDabcd";
+	char *inputName = 0;
+	char buf[256];
+	FILE *f;
+
+	f = fopen("/proc/bus/nim_sockets", "rt");
+	if (f)
+	{
+		while (fgets(buf, sizeof(buf), f))
+		{
+			char *p = strcasestr(buf, id1);
+			if (!p)
+				continue;
+
+			p += strlen(id1);
+			p += strcspn(p, keys1);
+			if (*p && strtol(p, 0, 0) == NimNumber)
+				break;
+		}
+
+		while (fgets(buf, sizeof(buf), f))
+		{
+			if (strcasestr(buf, id1))
+				break;
+
+			char *p = strcasestr(buf, id2);
+			if (!p)
+				continue;
+
+			p = strchr(p + strlen(id2), ':');
+			if (!p)
+				continue;
+
+			p++;
+			p += strcspn(p, keys2);
+			size_t len = strspn(p, keys2);
+			if (len > 0)
+			{
+				inputName = strndup(p, len);
+				break;
+			}
+		}
+
+		fclose(f);
+	}
+
+	return inputName;
+}
+
+static std::string getTunerLetterDM(int NimNumber)
+{
+	char *srcCI = readInputCI(NimNumber);
+	if (srcCI) return std::string(srcCI);
+	return eDVBCISlot::getTunerLetter(NimNumber);
+}
+
+
 eDVBCIInterfaces::eDVBCIInterfaces()
 {
-
-	char buf[64];
-	int ci_num;
-	ePtr<eDVBCISlot> cislot;
+	int num_ci = 0;
+	std::stringstream path;
 
 	instance = this;
+	m_stream_interface = interface_none;
+	m_stream_finish_mode = finish_none;
 
 	eDebug("[CI] scanning for common interfaces..");
 
-	for(ci_num = 0; ci_num < 8; ci_num++)
+	for (;;)
 	{
-		snprintf(buf, sizeof(buf), "/dev/ci%d", ci_num);
-
-		if(::access(buf, R_OK))
+		path.str("");
+		path.clear();
+		path << "/dev/ci" << num_ci;
+		if(::access(path.str().c_str(), R_OK) < 0)
 			break;
 
-		cislot = new eDVBCISlot(eApp, ci_num);
-		cislot->setSource("A");
+		ePtr<eDVBCISlot> cislot;
+
+		cislot = new eDVBCISlot(eApp, num_ci);
 		m_slots.push_back(cislot);
+
+		++num_ci;
 	}
 
 	for (eSmartPtrList<eDVBCISlot>::iterator it(m_slots.begin()); it != m_slots.end(); ++it)
 		it->setSource("A");
 
-	for (int tuner_no = 0; tuner_no < (ci_num > 1 ? 26 : 2); ++tuner_no) // NOTE: this assumes tuners are A .. Z max.
+	for (int tuner_no = 0; tuner_no < 26; ++tuner_no) // NOTE: this assumes tuners are A .. Z max.
 	{
-		char filename[32];
-		snprintf(filename, sizeof(filename), "/proc/stb/tsmux/input%d", tuner_no);
+		path.str("");
+		path.clear();
+		path << "/proc/stb/tsmux/input" << tuner_no << "_choices";
 
-		if (::access(filename, R_OK) < 0) break;
+		if(::access(path.str().c_str(), R_OK) < 0)
+			break;
 
 		setInputSource(tuner_no, eDVBCISlot::getTunerLetter(tuner_no));
 	}
 
-	eDebug("[CI] done, found %d common interface slots", ci_num);
+	eDebug("[CI] done, found %d common interface slots", num_ci);
+
+	if (num_ci)
+	{
+		static const char *proc_ci_choices = "/proc/stb/tsmux/ci0_input_choices";
+
+		if (CFile::contains_word(proc_ci_choices, "PVR"))	// lowest prio = PVR
+			m_stream_interface = interface_use_pvr;
+
+		if (CFile::contains_word(proc_ci_choices, "DVR"))	// low prio = DVR
+			m_stream_interface = interface_use_dvr;
+
+		if (CFile::contains_word(proc_ci_choices, "DVR0"))	// high prio = DVR0
+			m_stream_interface = interface_use_dvr;
+
+		if (m_stream_interface == interface_none)			// fallback = DVR
+		{
+			m_stream_interface = interface_use_dvr;
+			eDebug("[CI] Streaming CI routing interface not advertised, assuming DVR method");
+		}
+
+		if (CFile::contains_word(proc_ci_choices, "PVR_NONE"))	// low prio = PVR_NONE
+			m_stream_finish_mode = finish_use_pvr_none;
+
+		if (CFile::contains_word(proc_ci_choices, "NONE"))		// high prio = NONE
+			m_stream_finish_mode = finish_use_none;
+
+		if (m_stream_finish_mode == finish_none)				// fallback = "tuner"
+		{
+			m_stream_finish_mode = finish_use_tuner_a;
+			eDebug("[CI] Streaming CI finish interface not advertised, assuming \"tuner\" method");
+		}
+	}
 }
 
 eDVBCIInterfaces::~eDVBCIInterfaces()
@@ -222,7 +326,7 @@ void eDVBCIInterfaces::ciRemoved(eDVBCISlot *slot)
 		if (slot->linked_next)
 			slot->linked_next->setSource(slot->current_source);
 		else // last CI in chain
-			setInputSource(slot->current_tuner, slot->current_source);
+			setInputSource(slot->current_tuner, eDVBCISlot::getTunerLetter(slot->current_tuner));
 		slot->linked_next = 0;
 		slot->use_count=0;
 		slot->plugged=true;
@@ -489,9 +593,29 @@ void eDVBCIInterfaces::recheckPMTHandlers()
 								 *
 								 * No need to set tuner input (setInputSource), because we have no tuner.
 								 */
-								std::stringstream source;
-								source << "DVR" << channel->getDvrId();
-								ci_it->setSource(source.str());
+
+								switch(m_stream_interface)
+								{
+									case interface_use_dvr:
+									{
+										std::stringstream source;
+										source << "DVR" << channel->getDvrId();
+										ci_it->setSource(source.str());
+										break;
+									}
+
+									case interface_use_pvr:
+									{
+										ci_it->setSource("PVR");
+										break;
+									}
+
+									default:
+									{
+										eDebug("[CI] warning: no valid CI streaming interface");
+										break;
+									}
+								}
 							}
 						}
 						ci_it->current_tuner = tunernum;
@@ -575,8 +699,44 @@ void eDVBCIInterfaces::removePMTHandler(eDVBServicePMTHandler *pmthandler)
 				caids.push_back(0xFFFF);
 				slot->sendCAPMT(pmthandler, caids);  // send a capmt without caids to remove a running service
 				slot->removeService(service_to_remove.getServiceID().get());
-				/* restore ci source to the default (tuner "A") */
-				slot->setSource("A");
+				if (slot->current_tuner == -1)
+				{
+					// no previous tuner to go back to, signal to CI interface CI action is finished
+
+					std::string finish_source;
+
+					switch (m_stream_finish_mode)
+					{
+						case finish_use_tuner_a:
+						{
+							finish_source = "A";
+							break;
+						}
+
+						case finish_use_pvr_none:
+						{
+							finish_source = "PVR_NONE";
+							break;
+						}
+
+						case finish_use_none:
+						{
+							finish_source = "NONE";
+							break;
+						}
+
+						default:
+							(void)0;
+					}
+
+					if(finish_source == "")
+					{
+						eDebug("[CI] warning: CI streaming finish mode not set, assuming \"tuner A\"");
+						finish_source = "A";
+					}
+
+					slot->setSource(finish_source);
+				}
 			}
 
 			if (!--slot->use_count)
@@ -584,7 +744,7 @@ void eDVBCIInterfaces::removePMTHandler(eDVBServicePMTHandler *pmthandler)
 				if (slot->linked_next)
 					slot->linked_next->setSource(slot->current_source);
 				else
-					setInputSource(slot->current_tuner, slot->current_source);
+					setInputSource(slot->current_tuner, eDVBCISlot::getTunerLetter(slot->current_tuner));
 
 				if (base_slot != slot)
 				{
@@ -643,8 +803,18 @@ int eDVBCIInterfaces::setInputSource(int tuner_no, const std::string &source)
 	{
 		char buf[64];
 		snprintf(buf, sizeof(buf), "/proc/stb/tsmux/input%d", tuner_no);
+		char *srcCI = NULL;
 
-		if (CFile::write(buf, source.c_str()) == -1)
+		if (source.find("CI") == std::string::npos)
+		{
+			srcCI = readInputCI(tuner_no);
+		}
+
+		if (srcCI && CFile::write(buf, srcCI) == -1)
+		{
+			eDebug("[CI] eDVBCIInterfaces setInputSource for input %s failed!", srcCI);
+		}
+		else if (CFile::write(buf, source.c_str()) == -1)
 		{
 			eDebug("[CI] eDVBCIInterfaces setInputSource for input %s failed!", source.c_str());
 			return 0;
@@ -888,7 +1058,7 @@ int eDVBCISlot::send(const unsigned char *data, size_t len)
 
 void eDVBCISlot::data(int what)
 {
-	eDebugCI("[CI] Slot %d what %d\n", getSlotID(), what);
+	eDebugCI("[CI] CISlot %d what %d\n", getSlotID(), what);
 	if(what == eSocketNotifier::Priority) {
 		if(state != stateRemoved) {
 			state = stateRemoved;
@@ -970,7 +1140,7 @@ eDVBCISlot::eDVBCISlot(eMainloop *context, int nr)
 
 	fd = ::open(filename, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 
-	eDebugCI("[CI] Slot %d has fd %d", getSlotID(), fd);
+	eDebugCI("[CI] CI Slot %d has fd %d", getSlotID(), fd);
 	state = stateInvalid;
 
 	if (fd >= 0)
@@ -1010,12 +1180,12 @@ int eDVBCISlot::getSlotID()
 
 int eDVBCISlot::reset()
 {
-	eDebug("[CI] Slot %d: reset requested", getSlotID());
+	eDebug("[CI] CI Slot %d: reset requested", getSlotID());
 
 	if (state == stateInvalid)
 	{
 		unsigned char buf[256];
-		eDebug("[CI] flush");
+		eDebug("[CI] ci flush");
 		while(::read(fd, buf, 256)>0);
 		state = stateResetted;
 	}
@@ -1033,7 +1203,7 @@ int eDVBCISlot::reset()
 
 int eDVBCISlot::startMMI()
 {
-	eDebug("[CI] Slot %d: startMMI()", getSlotID());
+	eDebug("[CI] CI Slot %d: startMMI()", getSlotID());
 
 	if(application_manager)
 		application_manager->startMMI();
@@ -1043,7 +1213,7 @@ int eDVBCISlot::startMMI()
 
 int eDVBCISlot::stopMMI()
 {
-	eDebug("[CI] Slot %d: stopMMI()", getSlotID());
+	eDebug("[CI] CI Slot %d: stopMMI()", getSlotID());
 
 	if(mmi_session)
 		mmi_session->stopMMI();
@@ -1053,7 +1223,7 @@ int eDVBCISlot::stopMMI()
 
 int eDVBCISlot::answerText(int answer)
 {
-	eDebug("[CI] Slot %d: answerText(%d)", getSlotID(), answer);
+	eDebug("[CI] CI Slot %d: answerText(%d)", getSlotID(), answer);
 
 	if(mmi_session)
 		mmi_session->answerText(answer);
@@ -1071,7 +1241,7 @@ int eDVBCISlot::getMMIState()
 
 int eDVBCISlot::answerEnq(char *value)
 {
-	eDebug("[CI] Slot %d: answerENQ(%s)", getSlotID(), value);
+	eDebug("[CI] CI Slot %d: answerENQ(%s)", getSlotID(), value);
 
 	if(mmi_session)
 		mmi_session->answerEnq(value);
@@ -1081,7 +1251,7 @@ int eDVBCISlot::answerEnq(char *value)
 
 int eDVBCISlot::cancelEnq()
 {
-	eDebug("[CI] Slot %d: cancelENQ", getSlotID());
+	eDebug("[CI] CI Slot %d: cancelENQ", getSlotID());
 
 	if(mmi_session)
 		mmi_session->cancelEnq();
@@ -1117,7 +1287,7 @@ int eDVBCISlot::sendCAPMT(eDVBServicePMTHandler *pmthandler, const std::vector<u
 			(pmt_version == it->second) &&
 			!sendEmpty )
 		{
-			eDebug("[CI] [eDVBCISlot] dont send self capmt version twice");
+			eDebug("[eDVBCISlot] dont send self capmt version twice");
 			return -1;
 		}
 
@@ -1128,7 +1298,7 @@ int eDVBCISlot::sendCAPMT(eDVBServicePMTHandler *pmthandler, const std::vector<u
 		{
 			unsigned char raw_data[2048];
 
-//			eDebug("[CI] send %s capmt for service %04x to slot %d",
+//			eDebug("[eDVBCISlot] send %s capmt for service %04x to slot %d",
 //				it != running_services.end() ? "UPDATE" : running_services.empty() ? "ONLY" : "ADD",
 //				program_number, slotid);
 
@@ -1136,7 +1306,7 @@ int eDVBCISlot::sendCAPMT(eDVBServicePMTHandler *pmthandler, const std::vector<u
 				it != running_services.end() ? 0x05 /*update*/ : running_services.empty() ? 0x03 /*only*/ : 0x04 /*add*/, 0x01, caids );
 			while( i != ptr->getSections().end() )
 			{
-		//			eDebug("[CI] append");
+		//			eDebug("[eDVBCISlot] append");
 				capmt.append(*i++);
 			}
 			capmt.writeToBuffer(raw_data);
@@ -1164,18 +1334,18 @@ int eDVBCISlot::sendCAPMT(eDVBServicePMTHandler *pmthandler, const std::vector<u
 
 			if (sendEmpty)
 			{
-//				eDebugNoNewLineStart("[CI[ SEND EMPTY CAPMT.. old version is %02x", raw_data[hlen+3]);
+//				eDebugNoNewLine("[eDVBCISlot] SEND EMPTY CAPMT.. old version is %02x", raw_data[hlen+3]);
 				if (sendEmpty && running_services.size() == 1)  // check if this is the capmt for the last running service
 					raw_data[hlen] = 0x03; // send only instead of update... because of strange effects with alphacrypt
 				raw_data[hlen+3] &= ~0x3E;
 				raw_data[hlen+3] |= ((pmt_version+1) & 0x1F) << 1;
-//				eDebugNoNewLine(" new version is %02x\n", raw_data[hlen+3]);
+//				eDebug(" new version is %02x", raw_data[hlen+3]);
 			}
 
-//			eDebugNoNewLineStart("[CI[ ca_manager %p dump capmt:", ca_manager);
+//			eDebug("ca_manager %p dump capmt:", ca_manager);
 //			for(int i=0;i<wp;i++)
 //				eDebugNoNewLine("%02x ", raw_data[i]);
-//			eDebugNoNewLine("\n");
+//			eDebug("");
 
 			//dont need tag and lenfield
 			ca_manager->sendCAPMT(raw_data + hlen, wp - hlen);
@@ -1198,8 +1368,19 @@ int eDVBCISlot::setSource(const std::string &source)
 	char buf[64];
 	current_source = source;
 	snprintf(buf, sizeof(buf), "/proc/stb/tsmux/ci%d_input", slotid);
+	char *srcCI = NULL;
 
-	if(CFile::write(buf, source.c_str()) == -1)
+	if(source.find("CI") == std::string::npos || source.size() == 1)
+	{
+		srcCI = readInputCI(source[0]-65);
+	}
+
+	if(srcCI && CFile::write(buf, srcCI) == -1)
+	{
+		eDebug("[CI] Slot: %d setSource: %s failed!", getSlotID(), srcCI);
+		return 0;
+	}
+	else if(CFile::write(buf, source.c_str()) == -1)
 	{
 		eDebug("[CI] Slot: %d setSource: %s failed!", getSlotID(), source.c_str());
 		return 0;

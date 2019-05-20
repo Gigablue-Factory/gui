@@ -362,11 +362,14 @@ class Wizard(Screen):
 
 		if self.showConfig:
 			if self.wizard[currStep]["config"]["screen"] is not None:
+				if self.configInstance.__class__.__name__ == "NimSetup" and self.configInstance["config"].getCurrent()[1].__class__.__name__ == "ConfigNothing":
+					self.configInstance.keyRight()
+					return
 				# TODO: don't die, if no run() is available
 				# there was a try/except here, but i can't see a reason
 				# for this. If there is one, please do a more specific check
 				# and/or a comment in which situation there is no run()
-				if callable(getattr(self.configInstance, "runAsync", None)):
+				elif callable(getattr(self.configInstance, "runAsync", None)):
 					if self.updateValues in self.onShown:
 						self.onShown.remove(self.updateValues)
 					self.configInstance.runAsync(self.finished)
@@ -592,7 +595,10 @@ class Wizard(Screen):
 						if self.wizard[self.currStep]["config"]["args"] is None:
 							self.configInstance = self.session.instantiateDialog(self.wizard[self.currStep]["config"]["screen"])
 						else:
-							self.configInstance = self.session.instantiateDialog(self.wizard[self.currStep]["config"]["screen"], eval(self.wizard[self.currStep]["config"]["args"]))
+							try:
+								self.configInstance = self.session.instantiateDialog(self.wizard[self.currStep]["config"]["screen"], eval(self.wizard[self.currStep]["config"]["args"]))
+							except:
+								self.configInstance = self.session.instantiateDialog(self.wizard[self.currStep]["config"]["screen"], self.wizard[self.currStep]["config"]["args"])
 						if SystemInfo["hasOSDAnimation"]:
 							self.configInstance.setAnimationMode(0)
 						self["config"].l.setList(self.configInstance["config"].list)

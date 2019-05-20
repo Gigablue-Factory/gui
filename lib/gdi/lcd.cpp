@@ -65,7 +65,10 @@ void eLCD::renderText(ePoint start, const char *text)
 	{
 		std::string message = text;
 		message = replace_all(message, "\n", " ");
-		::write(lcdfd, message.c_str(), message.size());
+		if (::write(lcdfd, message.c_str(), message.size()) == -1)
+		{
+			eDebug("[eLCD] renderText %s failed (%m)", text);
+		}
 	}
 }
 #endif
@@ -325,6 +328,7 @@ void eDBoxLCD::update()
 		else
 		{
 			FILE *file;
+#ifdef LCD_COLOR_BITORDER_RGB565
 			if ((file = fopen("/proc/stb/info/gbmodel", "r")) != NULL )
 			{
 				//gggrrrrrbbbbbggg bit order from memory
@@ -353,9 +357,12 @@ void eDBoxLCD::update()
 				}
 			}
 			else
-			{	
+			{
+#endif
 				write(lcdfd, _buffer, _stride * res.height());
+#ifdef LCD_COLOR_BITORDER_RGB565
 			}
+#endif
 		}
 	}
 	else /* lcd_type == 1 */

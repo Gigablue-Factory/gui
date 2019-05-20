@@ -1,4 +1,5 @@
 import os
+from boxbranding import getImageVersion
 
 def enumFeeds():
 	for fn in os.listdir('/etc/opkg'):
@@ -49,16 +50,12 @@ def listsDirPath():
 	try:
 		for line in open('/etc/opkg/opkg.conf', "r"):
 			if line.startswith('option'):
-				print "[opkg] debug 1"
 				line = line.split(' ', 2)
 				if len(line) > 2 and line[1] == ('lists_dir'):
 					return line[2].strip()
-			elif line.startswith('lists_dir'):
-				print "[opkg] debug 2"
-				return line.replace('\n','').split(' ')[2]
 	except Exception, ex:
 		print "[opkg]", ex
-		return '/var/lib/opkg/lists'
+	return '/var/lib/opkg/lists'
 
 if __name__ == '__main__':
 	for p in enumPlugins('enigma'):

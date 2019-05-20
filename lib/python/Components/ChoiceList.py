@@ -4,7 +4,8 @@ from enigma import RT_HALIGN_LEFT, eListboxPythonMultiContent, gFont
 from Tools.LoadPixmap import LoadPixmap
 import skin
 
-def ChoiceEntryComponent(key = None, text = ["--"]):
+def ChoiceEntryComponent(key = None, text=None):
+	text = ["--"] if text is None else text
 	res = [ text ]
 	if text[0] == "--":
 		x, y, w, h = skin.parameters.get("ChoicelistDash",(0, 0, 800, 25))
@@ -25,7 +26,7 @@ def ChoiceEntryComponent(key = None, text = ["--"]):
 				png = LoadPixmap(resolveFilename(SCOPE_CURRENT_SKIN, "skin_default/buttons/key_%s.png" % key))
 			if png:
 				x, y, w, h = skin.parameters.get("ChoicelistIcon",(5, 0, 30, 30))
-				res.append((eListboxPythonMultiContent.TYPE_PIXMAP_ALPHATEST, x, y, w, h, png))
+				res.append((eListboxPythonMultiContent.TYPE_PIXMAP_ALPHABLEND, x, y, w, h, png))
 	return res
 
 class ChoiceList(MenuList):

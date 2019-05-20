@@ -82,6 +82,7 @@ RESULT eServiceMP3Record::prepare(const char *filename, time_t begTime, time_t e
 			if (!ret)
 			{
 				std::string fname = m_filename;
+				fname.erase(fname.length()-6, 6);
 				fname += "eit";
 				eEPGCache::getInstance()->saveEventToFile(fname.c_str(), m_ref, eit_event_id, begTime, endTime);
 			}
@@ -486,7 +487,7 @@ gboolean eServiceMP3Record::handleAutoPlugCont(GstElement *bin, GstPad *pad, Gst
 
 RESULT eServiceMP3Record::frontendInfo(ePtr<iFrontendInformation> &ptr)
 {
-	ptr = 0;
+	ptr = nullptr;
 	return -1;
 }
 
@@ -498,12 +499,12 @@ RESULT eServiceMP3Record::connectEvent(const sigc::slot2<void,iRecordableService
 
 RESULT eServiceMP3Record::stream(ePtr<iStreamableService> &ptr)
 {
-	ptr = 0;
+	ptr = nullptr;
 	return -1;
 }
 
 RESULT eServiceMP3Record::subServices(ePtr<iSubserviceList> &ptr)
 {
-	ptr = 0;
+	ptr = nullptr;
 	return -1;
 }

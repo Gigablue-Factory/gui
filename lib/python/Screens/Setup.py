@@ -1,10 +1,12 @@
 from Screen import Screen
 from Components.ActionMap import NumberActionMap
-from Components.config import config, ConfigNothing
+from Components.config import config, ConfigNothing, ConfigText, ConfigPassword
 from Components.Label import Label
 from Components.SystemInfo import SystemInfo
 from Components.ConfigList import ConfigListScreen
+from Components.Pixmap import Pixmap
 from Components.Sources.StaticText import StaticText
+from Components.Sources.Boolean import Boolean
 from enigma import eEnv
 
 import xml.etree.cElementTree
@@ -99,6 +101,9 @@ class Setup(ConfigListScreen, Screen):
 		self["key_red"] = StaticText(_("Cancel"))
 		self["key_green"] = StaticText(_("OK"))
 		self["description"] = Label("")
+		self["HelpWindow"] = Pixmap()
+		self["HelpWindow"].hide()
+		self["VKeyIcon"] = Boolean(False)
 
 		self["actions"] = NumberActionMap(["SetupActions", "MenuActions"],
 			{
@@ -155,14 +160,14 @@ class Setup(ConfigListScreen, Screen):
 					continue
 
 				requires = x.get("requires")
-				if requires and requires.startswith('config.'):
-					item = eval(requires or "")
-					if item.value and not item.value == "0":
-						SystemInfo[requires] = True
-					else:
-						SystemInfo[requires] = False
-
-				if requires and not SystemInfo.get(requires, False):
+				if requires:
+					if requires[0] == '!':
+						if SystemInfo.get(requires[1:], False):
+							continue
+					elif not SystemInfo.get(requires, False):
+						continue
+				conditional = x.get("conditional")
+				if conditional and not eval(conditional):
 					continue
 
 				item_text = _(x.get("text", "??").encode("UTF-8"))
@@ -176,6 +181,9 @@ class Setup(ConfigListScreen, Screen):
 				# the second one is converted to string.
 				if not isinstance(item, ConfigNothing):
 					list.append((item_text, item, item_description))
+
+	def run(self):
+		self.keySave()
 
 def getSetupTitle(id):
 	xmldata = setupdom.getroot()

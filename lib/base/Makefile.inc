@@ -18,10 +18,12 @@ base_libenigma_base_a_SOURCES = \
 	base/init.cpp \
 	base/ioprio.cpp \
 	base/message.cpp \
+	base/modelinformation.cpp \
 	base/nconfig.cpp \
 	base/rawfile.cpp \
 	base/smartptr.cpp \
 	base/thread.cpp \
+	base/httpsstream.cpp \
 	base/httpstream.cpp \
 	base/wrappers.cpp
 
@@ -50,11 +52,13 @@ baseinclude_HEADERS = \
 	base/init_num.h \
 	base/ioprio.h \
 	base/message.h \
+	base/modelinformation.h \
 	base/nconfig.h \
 	base/object.h \
 	base/rawfile.h \
 	base/ringbuffer.h \
 	base/smartptr.h \
 	base/thread.h \
+	base/httpsstream.h \
 	base/httpstream.h \
 	base/wrappers.h

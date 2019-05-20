@@ -514,11 +514,12 @@ eServiceMP3::eServiceMP3(eServiceReference ref):
 	m_decoder_time_valid_state = 0;
 	m_errorInfo.missing_codec = "";
 	m_subs_to_pull_handler_id = m_notify_source_handler_id = m_notify_element_added_handler_id = 0;
+	m_decoder = NULL;
 
 	CONNECT(m_subtitle_sync_timer->timeout, eServiceMP3::pushSubtitles);
 	CONNECT(m_pump.recv_msg, eServiceMP3::gstPoll);
 	CONNECT(m_nownext_timer->timeout, eServiceMP3::updateEpgCacheNowNext);
-	m_aspect = m_width = m_height = m_framerate = m_progressive = -1;
+	m_aspect = m_width = m_height = m_framerate = m_progressive = m_gamma = -1;
 
 	m_state = stIdle;
 	m_subtitles_paused = false;
@@ -836,6 +837,11 @@ eServiceMP3::~eServiceMP3()
 	}
 
 	stop();
+
+	if (m_decoder)
+	{
+		m_decoder = NULL;
+	}
 
 	if (m_stream_tags)
 		gst_tag_list_free(m_stream_tags);
@@ -1319,7 +1325,7 @@ RESULT eServiceMP3::seekRelative(int direction, pts_t to)
 		return -1;
 
 	//eDebug("[eServiceMP3]  seekRelative direction %d, pts_t to %" G_GINT64_FORMAT, direction, (gint64)to);
-	gint64 ppos = 0;
+	pts_t ppos = 0;
 #if GST_VERSION_MAJOR >= 1
 	//m_seeking_or_paused = true;
 	if (direction > 0)
@@ -1635,6 +1641,7 @@ int eServiceMP3::getInfo(int w)
 	case sVideoWidth: return m_width;
 	case sFrameRate: return m_framerate;
 	case sProgressive: return m_progressive;
+	case sGamma: return m_gamma;
 	case sAspect: return m_aspect;
 	case sTagTitle:
 	case sTagArtist:
@@ -2227,6 +2234,15 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 						m_is_live = true;
 					m_event((iPlayableService*)this, evGstreamerPlayStarted);
 					updateEpgCacheNowNext();
+
+					if (!dvb_videosink || m_ref.getData(0) == 2) // show radio pic
+					{
+						bool showRadioBackground = eConfigManager::getConfigBoolValue("config.misc.showradiopic", true);
+						std::string radio_pic = eConfigManager::getConfigValue(showRadioBackground ? "config.misc.radiopic" : "config.misc.blackradiopic");
+						m_decoder = new eTSMPEGDecoder(NULL, 0);
+						m_decoder->showSinglePic(radio_pic.c_str());
+					}
+
 				}	break;
 				case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
 				{
@@ -2555,6 +2571,12 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 							gst_structure_get_int (msgstruct, "height", &m_height);
 							if (strstr(eventname, "Changed"))
 								m_event((iPlayableService*)this, evVideoSizeChanged);
+						}
+						else if (!strcmp(eventname, "eventGammaChanged"))
+						{
+							gst_structure_get_int (msgstruct, "gamma", &m_gamma);
+							if (strstr(eventname, "Changed"))
+								m_event((iPlayableService*)this, evVideoGammaChanged);
 						}
 						else if (!strcmp(eventname, "eventFrameRateChanged") || !strcmp(eventname, "eventFrameRateAvail"))
 						{

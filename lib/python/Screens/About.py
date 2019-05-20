@@ -21,9 +21,8 @@ from Tools.StbHardware import getFPVersion
 from boxbranding import getBoxType, getMachineBuild
 boxtype = getBoxType()
 
-from enigma import eTimer, eLabel, eConsoleAppContainer
+from enigma import eTimer, eLabel, eConsoleAppContainer, getDesktop
 
-from Components.HTMLComponent import HTMLComponent
 from Components.GUIComponent import GUIComponent
 import skin, os
 
@@ -116,6 +115,19 @@ class About(Screen):
 		self["ChipsetInfo"] = StaticText(ChipsetInfo)
 		AboutText += ChipsetInfo + "\n"
 
+		if boxtype == 'gbquad4k' or boxtype == 'gbue4k':
+			def strip_non_ascii(boltversion):
+				''' Returns the string without non ASCII characters'''
+				stripped = (c for c in boltversion if 0 < ord(c) < 127)
+				return ''.join(stripped)
+			boltversion = str(popen('cat /sys/firmware/devicetree/base/bolt/tag').read().strip())
+			boltversion = strip_non_ascii(boltversion)
+			AboutText += _("Bolt") + ":" + boltversion + "\n"
+			self["BoltVersion"] = StaticText(boltversion)
+
+
+		AboutText += _("Enigma (re)starts: %d\n") % config.misc.startCounter.value
+
 		fp_version = getFPVersion()
 		if fp_version is None:
 			fp_version = ""
@@ -152,7 +164,7 @@ class About(Screen):
 		self["FlashDate"] = StaticText(FlashDate)
 		AboutText += FlashDate + "\n"
 
-		EnigmaSkin = _("Skin: ") + config.skin.primary_skin.value[0:-9]
+		EnigmaSkin = _('Skin & Resolution: %s (%sx%s)') % (config.skin.primary_skin.value.split('/')[0], getDesktop(0).size().width(), getDesktop(0).size().height())
 		self["EnigmaSkin"] = StaticText(EnigmaSkin)
 		AboutText += EnigmaSkin + "\n"
 
@@ -207,7 +219,7 @@ class About(Screen):
 		self["key_red"] = Button(_("Latest Commits"))
 		self["key_yellow"] = Button(_("Troubleshoot"))
 		self["key_blue"] = Button(_("Memory Info"))
-		self["key_info"] = Button(_("Contact Info"))
+		self["key_info"] = StaticText(_("Contact Info"))
 		self["actions"] = ActionMap(["ColorActions", "SetupActions", "DirectionActions"],
 			{
 				"cancel": self.close,
@@ -298,7 +310,7 @@ class TranslationInfo(Screen):
 		if infomap.get("Report-Msgid-Bugs-To", "") != "":
 			linfo += _("Report Msgid Bugs To")	+ ":" + infomap.get("Report-Msgid-Bugs-To", "") + "\n"
 		else:
-			linfo += _("Report Msgid Bugs To")	+ ":" + "arn354@email.de" + "\n"
+			linfo += _("Report Msgid Bugs To")	+ ":" + "GigaBlue" + "\n"
 		self["AboutScrollLabel"] = ScrollLabel(linfo)
 
 
@@ -325,7 +337,7 @@ class CommitInfo(Screen):
 		self.project = 0
 		self.projects = [
 			#("organisation",  "repository",           "readable name",                "branch"),
-			("Gigablue",      "stbgui",               "Gigablue OS",             "1708"),
+			("Gigablue",      "stbgui",               "Gigablue OS",             "2019"),
 			("Gigablue",      "skin-pax",             "Skin GigaBlue Pax",   "master"),
 		]
 		self.cachedProjects = {}
@@ -334,29 +346,54 @@ class CommitInfo(Screen):
 		self.Timer.start(50, True)
 
 	def readGithubCommitLogs(self):
-		url = 'https://api.github.com/repos/%s/%s/commits?sha=%s' % (self.projects[self.project][0], self.projects[self.project][1], self.projects[self.project][3])
-		# print "[About] url: ", url
+		if self.projects[self.project][4] == "github":
+			url = 'https://api.github.com/repos/%s/%s/commits?sha=%s' % (self.projects[self.project][0], self.projects[self.project][1], self.projects[self.project][3])
+		if self.projects[self.project][4] == "gitlab":
+			url1 = 'https://gitlab.com/api/v4/projects/%s' % (self.projects[self.project][0])
+			url2 = '%2F'
+			url3 = '%s/repository/commits?ref_name=%s' % (self.projects[self.project][1], self.projects[self.project][3])
+			url = url1 + url2 + url3
+			# print "[About] url: ", url
 		commitlog = ""
 		from datetime import datetime
 		from json import loads
 		from urllib2 import urlopen
-		try:
-			commitlog += 80 * '-' + '\n'
-			commitlog += self.projects[self.project][2] + ' - ' + self.projects[self.project][1] + ' - branch:' + self.projects[self.project][3] + '\n'
-			commitlog += 'URL: https://github.com/' + self.projects[self.project][0] + '/' + self.projects[self.project][1] + '/tree/' + self.projects[self.project][3] + '\n'
-			commitlog += 80 * '-' + '\n'
-			for c in loads(urlopen(url, timeout=5).read()):
-				creator = c['commit']['author']['name']
-				title = c['commit']['message']
-				date = datetime.strptime(c['commit']['committer']['date'], '%Y-%m-%dT%H:%M:%SZ').strftime('%x %X')
-				if title.startswith ("Merge "):
-					pass
-				else:
-					commitlog += date + ' ' + creator + '\n' + title + 2 * '\n'
-			commitlog = commitlog.encode('utf-8')
-			self.cachedProjects[self.projects[self.project][2]] = commitlog
-		except:
-			commitlog += _("Currently the commit log cannot be retrieved - please try later again")
+		if self.projects[self.project][4] == "github":
+			try:
+				commitlog += 80 * '-' + '\n'
+				commitlog += self.projects[self.project][2] + ' - ' + self.projects[self.project][1] + ' - branch ' + self.projects[self.project][3] + '\n'
+				commitlog += 'URL: https://github.com/' + self.projects[self.project][0] + '/' + self.projects[self.project][1] + '/tree/' + self.projects[self.project][3] + '\n'
+				commitlog += 80 * '-' + '\n'
+				for c in loads(urlopen(url, timeout=5).read()):
+					creator = c['commit']['author']['name']
+					title = c['commit']['message']
+					date = datetime.strptime(c['commit']['committer']['date'], '%Y-%m-%dT%H:%M:%SZ').strftime('%x %X')
+					if title.startswith ("Merge "):
+						pass
+					else:
+						commitlog += date + ' ' + creator + '\n' + title + 2 * '\n'
+				commitlog = commitlog.encode('utf-8')
+				self.cachedProjects[self.projects[self.project][2]] = commitlog
+			except:
+				commitlog += _("Currently the commit log cannot be retrieved - please try later again")
+		if self.projects[self.project][4] == "gitlab":
+			try:
+				commitlog += 80 * '-' + '\n'
+				commitlog += self.projects[self.project][2] + ' - ' + self.projects[self.project][1] + ' - branch ' + self.projects[self.project][3] + '\n'
+				commitlog += 'URL: https://gitlab.com/' + self.projects[self.project][0] + '/' + self.projects[self.project][1] + '/tree/' + self.projects[self.project][3] + '\n'
+				commitlog += 80 * '-' + '\n'
+				for c in loads(urlopen(url, timeout=5).read()):
+					creator = c['author_name']
+					title = c['message']
+					date = datetime.strptime(c['committed_date'], '%Y-%m-%dT%H:%M:%S.000+02:00').strftime('%x %X')
+					if title.startswith ("Merge "):
+						pass
+					else:
+						commitlog += date + ' ' + creator + '\n' + title + '\n'
+				commitlog = commitlog.encode('utf-8')
+				self.cachedProjects[self.projects[self.project][2]] = commitlog
+			except:
+				commitlog += _("Currently the commit log cannot be retrieved - please try later again")
 		self["AboutScrollLabel"].setText(commitlog)
 
 	def updateCommitLogs(self):
@@ -378,23 +415,12 @@ class ContactInfo(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
 		self["actions"] = ActionMap(["SetupActions"],{"cancel": self.close,"ok": self.close})
-		self.setTitle(_("Manufacturer info"))
+		self.setTitle(_("Contact info"))
 		self["manufacturerinfo"] = StaticText(self.getManufacturerinfo())
 
 	def getManufacturerinfo(self):
-		minfo = "Impex-Sat GmbH & Co. KG\n"
-		minfo += "Beim Gie\xc3\x9fhaus 7\n"
-		minfo += "(D) 25348 Gl\xc3\xbcckstadt\n\n"
-		minfo += _("Phone") + "\t+49 4124 937262\n"
-		minfo += "Fax\t+49 4124 937266\n\n"
-		minfo += _("Store") + "\thttp://store.impex-sat.de\n"
-		minfo += "eMail\tinfo@impex-sat.de\n"
-		minfo += "eMail\tbestellung@impex-sat.de\n\n"
-		minfo += _("Monday")   + "\t10:00 - 18:00\n"
-		minfo += _("Tuesday")  + "\t10:00 - 18:00\n"
-		minfo += _("Wednesday")+ "\t10:00 - 18:00\n"
-		minfo += _("Thursday") + "\t10:00 - 18:00\n"
-		minfo += _("Friday")   + "\t10:00 - 18:00\n"
+		minfo = "GigaBlue\n"
+		minfo += "http://gigablue.de\n"
 		return minfo
 
 class MemoryInfo(Screen):
@@ -464,7 +490,7 @@ class MemoryInfo(Screen):
 		open("/proc/sys/vm/drop_caches", "w").write("3")
 		self.getMemoryInfo()
 
-class MemoryInfoSkinParams(HTMLComponent, GUIComponent):
+class MemoryInfoSkinParams(GUIComponent):
 	def __init__(self):
 		GUIComponent.__init__(self)
 		self.rows_in_column = 25
@@ -477,7 +503,7 @@ class MemoryInfoSkinParams(HTMLComponent, GUIComponent):
 					self.rows_in_column = int(value)
 			self.skinAttributes = attribs
 		return GUIComponent.applySkin(self, desktop, screen)
-
+	
 	GUI_WIDGET = eLabel
 
 class SystemNetworkInfo(Screen):
@@ -825,7 +851,7 @@ class Troubleshoot(Screen):
 
 	def appClosed(self, retval):
 		if retval:
-			self["AboutScrollLabel"].setText(_("Some error occured - Please try later"))
+			self["AboutScrollLabel"].setText(_("Some error occurred - Please try later"))
 
 	def dataAvail(self, data):
 		self["AboutScrollLabel"].appendText(data)
@@ -844,7 +870,7 @@ class Troubleshoot(Screen):
 				if self.container.execute(command):
 					raise Exception, "failed to execute: ", command
 			except Exception, e:
-				self["AboutScrollLabel"].setText("%s\n%s" % (_("Some error occured - Please try later"), e))
+				self["AboutScrollLabel"].setText("%s\n%s" % (_("Some error occurred - Please try later"), e))
 
 	def cancel(self):
 		self.container.appClosed.remove(self.appClosed)
@@ -859,8 +885,8 @@ class Troubleshoot(Screen):
 		return [x for x in sorted(glob.glob("/mnt/hdd/*.log"), key=lambda x: os.path.isfile(x) and os.path.getmtime(x))] + (os.path.isfile(home_root) and [home_root] or []) + (os.path.isfile(tmp) and [tmp] or [])
 
 	def updateOptions(self):
-		self.titles = ["dmesg", "ifconfig", "df", "top", "ps"]
-		self.commands = ["dmesg", "ifconfig", "df -h", "top -n 1", "ps"]
+		self.titles = ["dmesg", "ifconfig", "df", "top", "ps", "messages"]
+		self.commands = ["dmesg", "ifconfig", "df -h", "top -n 1", "ps", "cat /var/volatile/log/messages"]
 		install_log = "/home/root/autoinstall.log"
 		if os.path.isfile(install_log):
 				self.titles.append("%s" % install_log)

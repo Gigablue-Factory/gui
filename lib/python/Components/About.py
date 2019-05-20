@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import struct, socket, fcntl, sys, os, time
+import struct, socket, fcntl, re, sys, os, time
 from sys import modules
 from Tools.HardwareInfo import HardwareInfo
 
@@ -29,6 +29,10 @@ def getFlashDateString():
 		return _("unknown")
 
 def getEnigmaVersionString():
+	# import enigma
+	# enigma_version = enigma.getEnigmaVersionString()
+	# if len(enigma_version) > 11:
+	# 	enigma_version = enigma_version[:10] + " " + enigma_version[11:]
 	from boxbranding import getImageVersion
 	enigma_version = getImageVersion()
 	if '-(no branch)' in enigma_version:
@@ -36,8 +40,12 @@ def getEnigmaVersionString():
 	return enigma_version
 
 def getGStreamerVersionString():
-	import enigma
-	return enigma.getGStreamerVersionString()
+	try:
+		from glob import glob
+		gst = [x.split("Version: ") for x in open(glob("/var/lib/opkg/info/gstreamer[0-9].[0-9].control")[0], "r") if x.startswith("Version:")][0]
+		return "%s" % gst[1].split("+")[0].replace("\n","")
+	except:
+		return _("unknown")
 
 def getKernelVersionString():
 	try:
@@ -46,7 +54,7 @@ def getKernelVersionString():
 		return _("unknown")
 
 def getChipSetString():
-	if getMachineBuild() in ('gb73625'):
+	if getMachineBuild() in ('gb73625', ):
 		return "BCM73625"
 	else:
 		try:
@@ -58,11 +66,11 @@ def getChipSetString():
 			return "unavailable"
 
 def getCPUString():
-	if getMachineBuild() in ('xc7362'):
+	if getMachineBuild() in ('xc7362', ):
 		return "Broadcom"
-	elif getMachineBuild() in ('gbmv200'):
+	elif getMachineBuild() in ('gbmv200', ):
 		return "Hisilicon"
-	#elif getMachineBuild() in ('gb73625'):
+	#elif getMachineBuild() in ('gb73625', ):
 	#	return "BCM73625"
 	else:
 		try:
@@ -105,12 +113,13 @@ def getHardwareTypeString():
 
 def getImageTypeString():
 	try:
-		return open("/etc/issue").readlines()[-2].capitalize().strip()[:-6]
+		image_type = open("/etc/issue").readlines()[-2].strip()[:-6]
+		return image_type.capitalize()
 	except:
 		return _("undefined")
 
 def getCPUInfoString():
-	if getMachineBuild() in ('gbmv200'):
+	if getMachineBuild() in ('gbmv200', ):
 		return "Hisilicon 1,6 GHz 4 Cores"
 
 	try:
@@ -144,6 +153,11 @@ def getCPUInfoString():
 				temperature = int(open("/sys/devices/virtual/thermal/thermal_zone0/temp").read().strip())/1000
 			except:
 				pass
+		elif os.path.isfile("/proc/hisi/msp/pm_cpu"):
+			try:
+				temperature = re.search('temperature = (\d+) degree', open("/proc/hisi/msp/pm_cpu").read()).group(1)
+			except:
+				pass
 		if temperature:
 			return "%s %s MHz (%s) %s°C" % (processor, cpu_speed, ngettext("%d core", "%d cores", cpu_count) % cpu_count, temperature)
 		return "%s %s MHz (%s)" % (processor, cpu_speed, ngettext("%d core", "%d cores", cpu_count) % cpu_count)
@@ -151,7 +165,7 @@ def getCPUInfoString():
 		return _("undefined")
 
 def getCPUSpeedString():
-	if getMachineBuild() in ('gbmv200'):
+	if getMachineBuild() in ('gbmv200', ):
 		return "1,6 GHz"
 	mhz = "unavailable"
 	try:
